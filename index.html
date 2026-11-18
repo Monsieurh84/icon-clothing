@@ -86,7 +86,7 @@ section{padding:110px 0}
 /* product card */
 .pc{position:relative;cursor:pointer}
 .pc .ph{position:relative;aspect-ratio:1/1;background:#fff;overflow:hidden}
-.pc .ph img{width:100%;height:100%;object-fit:cover;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.pc .ph img{width:100%;height:100%;object-fit:contain;padding:7%;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
 .pc:hover .ph img{transform:scale(1.06)}
 .pc .off{position:absolute;top:14px;left:14px;background:var(--noir);color:#fff;font-size:11px;letter-spacing:.12em;padding:5px 9px}
 .pc .wl{position:absolute;top:10px;right:10px;width:38px;height:38px;display:grid;place-items:center;z-index:2}
@@ -162,7 +162,7 @@ section{padding:110px 0}
 .idx:hover a{color:#b5aea4}
 .idx a:hover{color:var(--noir)}
 .preview{position:sticky;top:120px;aspect-ratio:4/5;background:var(--pack);overflow:hidden}
-.preview img{width:100%;height:100%;object-fit:contain;padding:10%;mix-blend-mode:multiply;transition:opacity .35s}
+.preview img{width:100%;height:100%;object-fit:contain;padding:10%;transition:opacity .35s}
 .preview .eyebrow{position:absolute;left:18px;bottom:16px}
 @media(max-width:900px){.index{grid-template-columns:1fr}.preview{display:none}}
 
@@ -214,7 +214,7 @@ footer{background:var(--noir);color:#9b948a;padding:80px 0 30px}
 .items{flex:1;overflow:auto;padding:0 28px}
 .ci{display:grid;grid-template-columns:84px 1fr auto;gap:16px;padding:20px 0;border-bottom:1px solid var(--line);align-items:center}
 .ci .th{width:84px;height:104px;background:var(--pack)}
-.ci .th img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;padding:8px}
+.ci .th img{width:100%;height:100%;object-fit:contain;padding:6px}
 .ci .br{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:600}
 .ci small{color:var(--stone)}
 .ci .rm{font-size:11px;letter-spacing:.14em;text-transform:uppercase;text-decoration:underline;color:var(--stone);margin-top:6px;display:inline-block}
@@ -291,6 +291,11 @@ footer{background:var(--noir);color:#9b948a;padding:80px 0 30px}
 }
 </style>
 <script>document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&!t.dataset.f&&t.getAttribute('src')&&t.getAttribute('src').startsWith('img/')){t.dataset.f=1;t.src='https://icon-clothing.fr/wp-content/uploads/'+t.getAttribute('src').slice(4)}},true)</script>
+<script>
+/* fond assorti a chaque packshot : la photo entiere reste visible, sans cadre gris */
+function fitBg(img){try{const w=img.naturalWidth,h=img.naturalHeight;if(!w)return;const c=document.createElement('canvas');c.width=c.height=6;const x=c.getContext('2d',{willReadFrequently:true});const s=Math.max(2,Math.round(Math.min(w,h)*.03));let R=0,G=0,B=0,A=0,n=0;for(const [sx,sy] of [[0,0],[w-s,0],[0,h-s],[w-s,h-s]]){x.clearRect(0,0,6,6);x.drawImage(img,sx,sy,s,s,0,0,6,6);const d=x.getImageData(0,0,6,6).data;for(let i=0;i<d.length;i+=4){R+=d[i];G+=d[i+1];B+=d[i+2];A+=d[i+3];n++}}const box=img.closest('.ph,figure,.th,.preview');if(!box)return;box.style.background=A/n<128?'#fff':`rgb(${R/n|0},${G/n|0},${B/n|0})`}catch(e){}}
+document.addEventListener('load',e=>{const t=e.target;if(t.tagName==='IMG'&&t.closest('.ph,.mosaic,.th,.preview')&&!t.closest('.mini'))fitBg(t)},true);
+</script>
 </head>
 <body>
 
