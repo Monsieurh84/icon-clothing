@@ -13,6 +13,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -21,7 +22,7 @@ jobs:
       - name: Catalogue, fiches produits et photos
         run: |
           pip install -q --break-system-packages pillow || pip install -q pillow || true
-          python3 build.py https://icon-clothing.fr || echo "Catalogue indisponible, on garde la version precedente"
+          python3 -u build.py https://icon-clothing.fr || echo "Catalogue indisponible, on garde la version precedente"
       - name: Enregistrer les photos dans le depot
         run: |
           git config user.name "Monsieur.H"
