@@ -77,8 +77,15 @@ if os.path.exists('images.txt'):
     print('Photos accueil:', n)
 
 
+ALIAS = {'cloudnova': 'On', 'cloudmonster': 'On', 'gel-': 'ASICS', 'gel ': 'ASICS', 'kayano': 'ASICS', 'xt-': 'Salomon',
+         'vomero': 'Nike', 'air max': 'Nike', 'dunk': 'Nike', 'campus': 'Adidas', 'samba': 'Adidas'}
+
+
 def brand_of(name):
     low = name.lower()
+    for k, v in ALIAS.items():
+        if low.startswith(k):
+            return v, ''
     for b in BRANDS:
         if low.startswith(b.lower()) or (' ' + b.lower() + ' ') in (' ' + low + ' '):
             nice = {'OFF WHITE': 'Off-White', 'SALOMON': 'Salomon', 'SAUCONY': 'Saucony', 'CP company': 'C.P. Company',
@@ -154,7 +161,16 @@ for p in products:
         terms = list(dict.fromkeys(terms))
         n = a.get('name', '').lower()
         if any(k in n for k in ('taille', 'pointure', 'size')):
-            sizes = terms
+            norm = []
+            for t in terms:
+                t2 = t.replace(',', '.').strip()
+                if t2 not in norm:
+                    norm.append(t2)
+            try:
+                norm.sort(key=lambda x: float(x))
+            except ValueError:
+                pass
+            sizes = norm
         elif any(k in n for k in ('couleur', 'color', 'coloris')):
             colors = terms
     # disponibilite par taille (variations)
@@ -166,7 +182,8 @@ for p in products:
         for va in v.get('attributes', []):
             val = html.unescape(str(va.get('value', '')))
             for s in sizes:
-                if s.lower().replace(' ', '-') == val.lower().replace(' ', '-') or s.lower() == val.lower():
+                v2 = val.lower().replace(',', '.').replace('-', '.')
+                if s.lower().replace(' ', '-') == val.lower().replace(' ', '-') or s.lower() == v2:
                     avail[s] = bool(vd.get('is_in_stock'))
     prices = p.get('prices', {})
     cats = [html.unescape(c['name']) for c in p.get('categories', []) if c['name'].lower() not in SKIP_CATS]
