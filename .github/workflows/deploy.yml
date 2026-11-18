@@ -1,0 +1,49 @@
+name: Publier le site
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recuperer et optimiser les photos
+        run: |
+          sudo apt-get install -y -qq webp >/dev/null 2>&1 || true
+          ok=0; ko=0
+          while read -r url path; do
+            [ -z "$url" ] && continue
+            [ -s "$path" ] && { ok=$((ok+1)); continue; }
+            mkdir -p "$(dirname "$path")"
+            if curl -fsSL --retry 3 -A "Mozilla/5.0 (Macintosh) Chrome/124" "$url" -o "$path"; then
+              case "$path" in *.jpg|*.jpeg|*.png) mogrify -resize '1600x1600>' -strip -quality 82 "$path" || true;; esac
+              ok=$((ok+1))
+            else
+              echo "ECHEC $url"; rm -f "$path"; ko=$((ko+1))
+            fi
+          done < images.txt
+          echo "Photos OK: $ok  Echecs: $ko"
+          du -sh img || true
+      - name: Enregistrer les photos dans le depot
+        run: |
+          git config user.name "Monsieur.H"
+          git config user.email "actions@users.noreply.github.com"
+          git add img
+          git diff --cached --quiet || (git commit -m "Photos du site" && git push)
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
