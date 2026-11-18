@@ -18,29 +18,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Catalogue et fiches produits
-        run: python3 build.py https://icon-clothing.fr || echo "Catalogue indisponible, on garde la version precedente"
-      - name: Recuperer et optimiser les photos
+      - name: Catalogue, fiches produits et photos
         run: |
-          ok=0; ko=0
-          while read -r url path; do
-            [ -z "$url" ] && continue
-            [ -s "$path" ] && { ok=$((ok+1)); continue; }
-            mkdir -p "$(dirname "$path")"
-            if curl -fsSL --retry 3 -A "Mozilla/5.0 (Macintosh) Chrome/124" "$url" -o "$path"; then
-              case "$path" in *.jpg|*.jpeg|*.png) mogrify -resize '1600x1600>' -strip -quality 82 "$path" || true;; esac
-              ok=$((ok+1))
-            else
-              echo "ECHEC $url"; rm -f "$path"; ko=$((ko+1))
-            fi
-          done < images.txt
-          echo "Photos OK: $ok  Echecs: $ko"
-          du -sh img || true
+          pip install -q --break-system-packages pillow || pip install -q pillow || true
+          python3 build.py https://icon-clothing.fr || echo "Catalogue indisponible, on garde la version precedente"
       - name: Enregistrer les photos dans le depot
         run: |
           git config user.name "Monsieur.H"
           git config user.email "actions@users.noreply.github.com"
-          git add img data || true
+          for d in img data; do [ -e "$d" ] && git add "$d" || true; done
           git diff --cached --quiet || (git commit -m "Photos et catalogue" && (git pull --rebase -q && git push) || echo "push ignore")
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
