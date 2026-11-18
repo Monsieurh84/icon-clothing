@@ -436,7 +436,11 @@ const P=[
 const $=s=>document.querySelector(s);
 const eur=v=>(v%1?v.toFixed(2).replace('.',','):v.toLocaleString('fr-FR'))+' €';
 const off=p=>p.r?Math.round((1-p.p/p.r)*100):0;
-let cart=[],wish=new Set();
+let wish=new Set();
+const CK='icon_cart';let cart=[];try{cart=JSON.parse(localStorage.getItem(CK)||'[]')}catch(e){}
+function saveCart(){try{localStorage.setItem(CK,JSON.stringify(cart))}catch(e){}}
+const SLUG={};fetch('data/products.json').then(r=>r.json()).then(d=>d.forEach(x=>{if(x.src0)SLUG[x.src0.split('/uploads/')[1]]=x.slug})).catch(()=>{});
+function go(id){const p=P.find(x=>x.id===id),s=SLUG['2025/'+p.i];s?location.href='product.html?p='+s:openP(id)}
 
 // header
 const hdr=$('#hdr');addEventListener('scroll',()=>hdr.classList.toggle('solid',scrollY>innerHeight*.85));
@@ -449,8 +453,8 @@ const B=['Dior','Moncler','Stone Island','Casablanca','Off-White','Gucci','Prada
 $('#brands').innerHTML=[...B,...B].map(b=>`<span>${b}</span><b></b>`).join('');
 
 function card(p,opts={}){
- return `<article class="pc" onclick="openP(${p.id})">
-  <div class="ph"><img loading="lazy" src="${U+p.i}" alt="${p.b} ${p.n}">${p.r?`<span class="off">−${off(p)} %</span>`:''}<span class="qa">Aperçu rapide</span></div>
+ return `<article class="pc" onclick="go(${p.id})">
+  <div class="ph"><img loading="lazy" src="${U+p.i}" alt="${p.b} ${p.n}">${p.r?`<span class="off">−${off(p)} %</span>`:''}<span class="qa" onclick="event.stopPropagation();openP(${p.id})">Aperçu rapide</span></div>
   <button class="wl ${wish.has(p.id)?'on':''}" onclick="event.stopPropagation();this.classList.toggle('on');toast('Ajouté à vos favoris')" aria-label="Favori"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
   <div class="meta"><div class="br">${p.b}</div><h3>${p.n}</h3><div class="pr">${p.r?`<span class="r">${eur(p.p)}</span><s>${eur(p.r)}</s>`:eur(p.p)}</div></div>
  </article>`}
@@ -501,12 +505,13 @@ function openP(id){
  $('#madd').onclick=()=>{if(!sel){toast('Sélectionnez une taille');return}closeAll();add(p.id,sel)};
  $('#modal').classList.add('on');$('#veil').classList.add('on');
 }
-function add(id,size){const k=id+'-'+size,f=cart.find(c=>c.k===k);f?f.q++:cart.push({k,id,size,q:1});renderCart();openCart()}
-function rm(k){cart=cart.filter(c=>c.k!==k);renderCart()}
+function add(id,size){const p=P.find(x=>x.id===id);addItem({slug:SLUG['2025/'+p.i]||'',b:p.b,n:p.n,p:p.p,img:U+p.i,size})}
+function addItem(it){const k=(it.slug||it.n)+'-'+it.size,f=cart.find(c=>c.k===k);f?f.q++:cart.push({...it,k,q:1});saveCart();renderCart();openCart()}
+function rm(k){cart=cart.filter(c=>c.k!==k);saveCart();renderCart()}
 function renderCart(){
- const n=cart.reduce((s,c)=>s+c.q,0),tot=cart.reduce((s,c)=>s+P.find(p=>p.id===c.id).p*c.q,0);
+ const n=cart.reduce((s,c)=>s+c.q,0),tot=cart.reduce((s,c)=>s+c.p*c.q,0);
  $('#cnt').textContent=n||'';$('#total').textContent=eur(tot);
- $('#items').innerHTML=cart.length?cart.map(c=>{const p=P.find(x=>x.id===c.id);return `<div class="ci"><div class="th"><img src="${U+p.i}" alt=""></div><div><div class="br">${p.b}</div><div>${p.n}</div><small>Taille ${c.size} · Qté ${c.q}</small><br><button class="rm" onclick="rm('${c.k}')">Retirer</button></div><div>${eur(p.p*c.q)}</div></div>`}).join(''):'<div class="empty"><span class="serif">Votre panier est vide.</span><p style="color:var(--stone)">Découvrez le vestiaire du moment.</p></div>';
+ $('#items').innerHTML=cart.length?cart.map(c=>`<div class="ci"><div class="th"><img src="${c.img}" alt=""></div><div><div class="br">${c.b||''}</div><div>${c.n}</div><small>Taille ${c.size} · Qté ${c.q}</small><br><button class="rm" onclick="rm('${c.k}')">Retirer</button></div><div>${eur(c.p*c.q)}</div></div>`).join(''):'<div class="empty"><span class="serif">Votre panier est vide.</span><p style="color:var(--stone)">Découvrez le vestiaire du moment.</p></div>';
 }
 renderCart();
 function openCart(){$('#drawer').classList.add('on');$('#veil').classList.add('on')}
