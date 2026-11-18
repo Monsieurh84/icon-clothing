@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Recupere le catalogue WooCommerce (API Store publique) et les photos produits,
 puis ecrit data/products.json pour les pages produit de la maquette."""
-import json, os, re, subprocess, sys, html, urllib.request, urllib.error
+import json, os, re, subprocess, sys, html, time, urllib.request, urllib.error
+from concurrent.futures import ThreadPoolExecutor
+T0 = time.time()
 
 SITE = sys.argv[1].rstrip('/')          # ex: https://gossipbrand.fr
 MAX_IMG = int(os.environ.get('MAX_IMG', '6'))
@@ -14,9 +16,9 @@ BRANDS = ['Dior', 'Moncler', 'Stone Island', 'Casablanca', 'Off-White', 'OFF WHI
           'Palm Angels', 'Canada Goose', 'Valentino', 'Versace', 'Fendi', 'Givenchy', 'Celine', 'Loewe', 'New Balance']
 
 
-def get(url):
+def get(url, timeout=25):
     req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=40) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode('utf-8'))
 
 
@@ -45,7 +47,7 @@ def fetch_img(src, path):
     if os.path.exists(path) and os.path.getsize(path) > 0:
         return True
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    r = subprocess.run(['curl', '-fsSL', '--retry', '3', '-A', UA['User-Agent'], src, '-o', path])
+    r = subprocess.run(['curl', '-fsSL', '--retry', '2', '--max-time', '40', '-A', UA['User-Agent'], src, '-o', path])
     if r.returncode != 0:
         if os.path.exists(path):
             os.remove(path)
@@ -96,6 +98,32 @@ while True:
     page += 1
 print('Produits:', len(products))
 
+print('Produits:', len(products), flush=True)
+# 1) photos en parallele
+jobs = []
+for p in products:
+    for im in p.get('images', [])[:MAX_IMG]:
+        src, path = local(im['src'])
+        if src:
+            jobs.append((src, path))
+with ThreadPoolExecutor(12) as ex:
+    res = list(ex.map(lambda j: fetch_img(*j), jobs))
+print(f'Photos produits: {sum(res)}/{len(jobs)} ({int(time.time()-T0)}s)', flush=True)
+# 2) stock par variation en parallele (optionnel, plafonne)
+var_ids = [v['id'] for p in products for v in p.get('variations', [])[:20]]
+VSTOCK = {}
+def vget(i):
+    try:
+        return i, bool(get(f"{SITE}/wp-json/wc/store/v1/products/{i}", timeout=10).get('is_in_stock'))
+    except Exception:
+        return i, None
+if var_ids and os.environ.get('NO_VARIATIONS') != '1':
+    probe = [vget(i) for i in var_ids[:3]]
+    if any(v is not None for _, v in probe):
+        with ThreadPoolExecutor(16) as ex:
+            VSTOCK = {i: v for i, v in ex.map(vget, var_ids) if v is not None}
+print(f'Variations: {len(VSTOCK)}/{len(var_ids)} ({int(time.time()-T0)}s)', flush=True)
+
 out, ok_img, ko_img = [], 0, 0
 for p in products:
     raw = html.unescape(p['name'])
@@ -132,10 +160,9 @@ for p in products:
     # disponibilite par taille (variations)
     avail = {}
     for v in p.get('variations', [])[:20]:
-        try:
-            vd = get(f"{SITE}/wp-json/wc/store/v1/products/{v['id']}")
-        except Exception:
+        if v['id'] not in VSTOCK:
             continue
+        vd = {'is_in_stock': VSTOCK[v['id']]}
         for va in v.get('attributes', []):
             val = html.unescape(str(va.get('value', '')))
             for s in sizes:
