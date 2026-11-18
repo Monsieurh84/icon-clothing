@@ -51,8 +51,28 @@ def fetch_img(src, path):
             os.remove(path)
         return False
     if path.lower().endswith(('.jpg', '.jpeg', '.png')):
-        subprocess.run(['mogrify', '-resize', '1600x1600>', '-strip', '-quality', '82', path])
+        try:
+            from PIL import Image
+            im = Image.open(path)
+            if max(im.size) > 1600:
+                im.thumbnail((1600, 1600))
+            if path.lower().endswith('.png'):
+                im.save(path, optimize=True)
+            else:
+                im.convert('RGB').save(path, quality=82, optimize=True, progressive=True)
+        except Exception as e:
+            print('resize ignore', path, e)
     return True
+
+
+# photos de la page d'accueil (images.txt)
+if os.path.exists('images.txt'):
+    n = 0
+    for line in open('images.txt'):
+        parts = line.split()
+        if len(parts) == 2 and fetch_img(parts[0], parts[1]):
+            n += 1
+    print('Photos accueil:', n)
 
 
 def brand_of(name):
